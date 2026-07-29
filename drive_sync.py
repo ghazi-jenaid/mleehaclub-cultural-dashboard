@@ -211,8 +211,9 @@ def start_drive_sync(
             daemon=True,
         )
         _THREAD.start()
+    if initial_wait_seconds <= 0:
+        return
     if not _READY.wait(timeout=initial_wait_seconds):
         raise TimeoutError("لم تكتمل المزامنة الأولى مع Google Drive في الوقت المحدد.")
     if _LAST_ERROR and not any(mirror_root.iterdir()):
         raise RuntimeError(f"تعذرت المزامنة الأولى: {_LAST_ERROR}")
-

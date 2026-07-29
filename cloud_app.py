@@ -62,7 +62,12 @@ if not os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON") and "gcp_service_account" i
     )
 
 try:
-    start_drive_sync(ROOT_FOLDER_ID, MIRROR_ROOT, SYNC_INTERVAL)
+    start_drive_sync(
+        ROOT_FOLDER_ID,
+        MIRROR_ROOT,
+        SYNC_INTERVAL,
+        initial_wait_seconds=0,
+    )
 except Exception as exc:
     st.set_page_config(page_title="اللجنة الثقافية والمجتمعية", layout="wide")
     st.error("تعذر الاتصال بمستندات اللجنة على Google Drive.")
