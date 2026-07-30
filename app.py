@@ -2552,9 +2552,8 @@ def render_page() -> None:
             render_dashboard(files, intelligence)
 
 
-@st.fragment(run_every=2)
 def live_refresh() -> None:
-    """يحدّث الصفحة مرة واحدة بعد استقرار دفعة تغييرات المزامنة."""
+    """يعالج تغييراً مستقراً عند إعادة رسم طبيعية للصفحة دون مؤقّت وامض."""
     service: WatchService | None = st.session_state.get("watch_service")
     if (
         service
@@ -2568,4 +2567,3 @@ def live_refresh() -> None:
 
 if __name__ == "__main__":
     render_page()
-    live_refresh()
