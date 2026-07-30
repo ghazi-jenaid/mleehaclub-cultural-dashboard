@@ -167,7 +167,13 @@ class ChangeHandler(FileSystemEventHandler):
 
     def on_any_event(self, event) -> None:  # noqa: ANN001
         """يسجل وصول حدث نظام ملفات غير مستبعد."""
-        if not _is_ignored_path(Path(event.src_path)):
+        # لا تُعد أحداث فتح/إغلاق الملفات تغييرات؛ فالمسح نفسه يفتح الملفات
+        # للقراءة، واحتسابها كان يسبب حلقة تحديث ووميضاً مستمراً.
+        if (
+            event.event_type in {"created", "modified", "deleted", "moved"}
+            and not event.is_directory
+            and not _is_ignored_path(Path(event.src_path))
+        ):
             self.service.mark_changed()
 
 
@@ -180,6 +186,7 @@ class WatchService:
         self.signal = threading.Event()
         self._lock = threading.Lock()
         self._revision = 0
+        self._last_changed_at = 0.0
         self.observer = Observer()
         self.observer.schedule(ChangeHandler(self), str(root), recursive=True)
         self.observer.daemon = True
@@ -191,10 +198,18 @@ class WatchService:
         with self._lock:
             return self._revision
 
+    @property
+    def seconds_since_change(self) -> float:
+        """يعيد المدة منذ آخر تغيير لتجميع دفعات المزامنة قبل تحديث الواجهة."""
+        with self._lock:
+            changed_at = self._last_changed_at
+        return time.monotonic() - changed_at if changed_at else float("inf")
+
     def mark_changed(self) -> None:
         """يسجل تغييراً بطريقة آمنة بين خيط المراقبة وخيط الواجهة."""
         with self._lock:
             self._revision += 1
+            self._last_changed_at = time.monotonic()
         self.signal.set()
 
     def is_alive(self) -> bool:
@@ -2537,11 +2552,17 @@ def render_page() -> None:
             render_dashboard(files, intelligence)
 
 
-@st.fragment(run_every=1)
+@st.fragment(run_every=2)
 def live_refresh() -> None:
-    """يفحص إشارة watchdog دورياً ويطلب إعادة الرسم دون تدخل المستخدم."""
+    """يحدّث الصفحة مرة واحدة بعد استقرار دفعة تغييرات المزامنة."""
     service: WatchService | None = st.session_state.get("watch_service")
-    if service and service.revision != st.session_state.get("watch_revision_seen", -1):
+    if (
+        service
+        and service.revision != st.session_state.get("watch_revision_seen", -1)
+        and service.seconds_since_change >= 5
+    ):
+        # تسجيل النسخة قبل إعادة الرسم يمنع دورة إعادة تشغيل لا نهائية.
+        st.session_state.watch_revision_seen = service.revision
         st.rerun()
 
 
