@@ -2559,7 +2559,7 @@ def live_refresh() -> None:
     if (
         service
         and service.revision != st.session_state.get("watch_revision_seen", -1)
-        and service.seconds_since_change >= 5
+        and getattr(service, "seconds_since_change", float("inf")) >= 5
     ):
         # تسجيل النسخة قبل إعادة الرسم يمنع دورة إعادة تشغيل لا نهائية.
         st.session_state.watch_revision_seen = service.revision
